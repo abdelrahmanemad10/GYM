@@ -1,5 +1,49 @@
 import streamlit as st
+import sqlite3
 import pandas as pd
+
+# إنشاء قاعدة البيانات
+conn = sqlite3.connect("users.db", check_same_thread=False)
+c = conn.cursor()
+
+# إنشاء جدول المستخدمين إذا لم يكن موجودًا
+c.execute('''CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT,
+                email TEXT UNIQUE,
+                password TEXT,
+                weight REAL,
+                height REAL
+            )''')
+
+# إنشاء جدول لتخزين تقدم المستخدم في الأوزان
+c.execute('''CREATE TABLE IF NOT EXISTS progress (
+                user_id INTEGER,
+                exercise TEXT,
+                weight_used REAL,
+                date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users (id)
+            )''')
+conn.commit()
+
+def register_user(name, email, password, weight, height):
+    """إضافة مستخدم جديد إلى قاعدة البيانات"""
+    try:
+        c.execute("INSERT INTO users (name, email, password, weight, height) VALUES (?, ?, ?, ?, ?)", (name, email, password, weight, height))
+        conn.commit()
+        return True
+    except sqlite3.IntegrityError:
+        return False
+
+def login_user(email, password):
+    """التحقق من تسجيل دخول المستخدم"""
+    c.execute("SELECT * FROM users WHERE email=? AND password=?", (email, password))
+    return c.fetchone()
+
+def save_progress(user_id, exercise, weight_used):
+    """حفظ تقدم المستخدم في الأوزان"""
+    c.execute("INSERT INTO progress (user_id, exercise, weight_used) VALUES (?, ?, ?)", (user_id, exercise, weight_used))
+    conn.commit()
 
 # جدول التمارين
 workout_data = {
@@ -22,29 +66,18 @@ workout_data = {
     ]
 }
 
-# Sidebar for user input
-st.sidebar.title("🔍 تصفية حسب اليوم")
-selected_day = st.sidebar.selectbox("اختر اليوم", workout_data["اليوم"])
-
-st.sidebar.title("⚖️ تسجيل الوزن")
-weight = st.sidebar.number_input("أدخل وزنك (كجم)", min_value=30.0, max_value=200.0, value=64.0)
-st.sidebar.write(f"✅ وزنك الحالي: {weight} كجم")
-
-st.sidebar.title("👤 معلومات المستخدم")
-user_name = st.sidebar.text_input("أدخل اسمك")
-
-# Main content
-st.title("🔥 جدول تمرين Push Pull Legs")
-st.write("💪 جدول تمرين لمدة 6 أيام مناسب لزيادة الكتلة العضلية وتقليل الدهون.")
-
-if user_name:
-    st.write(f"مرحبًا، {user_name}!")
-
-index = workout_data["اليوم"].index(selected_day)
-st.header(f"📌 اليوم: {selected_day}")
-for j, exercise in enumerate(workout_data["التمارين"][index]):
-    st.write(f"{j+1}. {exercise}")
-    st.video(workout_data["روابط الفيديو"][index][j])
-    exercise_weight = st.number_input(f"أدخل الوزن المستخدم في {exercise} (كجم)", min_value=0.0, max_value=500.0, value=0.0, key=f"weight_{index}_{j}")
-
-st.write("✅ تأكد من زيادة الأحمال تدريجيًا والتغذية السليمة.")
+# عرض جدول التمارين
+if "logged_in" in st.session_state and st.session_state["logged_in"]:
+    st.title("🔥 جدول تمرين Push Pull Legs")
+    st.write("💪 جدول تمرين لمدة 6 أيام مناسب لزيادة الكتلة العضلية وتقليل الدهون.")
+    selected_day = st.sidebar.selectbox("اختر اليوم", workout_data["اليوم"])
+    index = workout_data["اليوم"].index(selected_day)
+    st.header(f"📌 اليوم: {selected_day}")
+    for j, exercise in enumerate(workout_data["التمارين"][index]):
+        st.write(f"{j+1}. {exercise}")
+        st.video(workout_data["روابط الفيديو"][index][j])
+        exercise_weight = st.number_input(f"أدخل الوزن المستخدم في {exercise} (كجم)", min_value=0.0, max_value=500.0, value=0.0, key=f"weight_{index}_{j}")
+        if st.button(f"💾 حفظ التقدم في {exercise}", key=f"save_{index}_{j}"):
+            save_progress(st.session_state["user_id"], exercise, exercise_weight)
+            st.success(f"✅ تم حفظ تقدمك في {exercise}!")
+    st.write("✅ تأكد من زيادة الأحمال تدريجيًا والتغذية السليمة.")
