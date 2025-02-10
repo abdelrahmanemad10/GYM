@@ -29,7 +29,8 @@ conn.commit()
 def register_user(name, email, password, weight, height):
     """إضافة مستخدم جديد إلى قاعدة البيانات"""
     try:
-        c.execute("INSERT INTO users (name, email, password, weight, height) VALUES (?, ?, ?, ?, ?)", (name, email, password, weight, height))
+        c.execute("INSERT INTO users (name, email, password, weight, height) VALUES (?, ?, ?, ?, ?)", 
+                  (name, email, password, weight, height))
         conn.commit()
         return True
     except sqlite3.IntegrityError:
@@ -42,10 +43,11 @@ def login_user(email, password):
 
 def save_progress(user_id, exercise, weight_used):
     """حفظ تقدم المستخدم في الأوزان"""
-    c.execute("INSERT INTO progress (user_id, exercise, weight_used) VALUES (?, ?, ?)", (user_id, exercise, weight_used))
+    c.execute("INSERT INTO progress (user_id, exercise, weight_used) VALUES (?, ?, ?)", 
+              (user_id, exercise, weight_used))
     conn.commit()
 
-# جدول التمارين
+# جدول التمارين مع روابط الفيديو
 workout_data = {
     "اليوم": ["Push 1", "Pull 1", "Legs 1", "Push 2", "Pull 2", "Legs 2"],
     "التمارين": [
@@ -66,8 +68,40 @@ workout_data = {
     ]
 }
 
-# عرض جدول التمارين
-if "logged_in" in st.session_state and st.session_state["logged_in"]:
+# واجهة التطبيق
+st.title("🔥 تسجيل الدخول والتسجيل")
+
+menu = ["تسجيل الدخول", "إنشاء حساب", "جدول التمارين"]
+choice = st.sidebar.selectbox("اختر الصفحة", menu)
+
+if choice == "إنشاء حساب":
+    st.subheader("🔹 إنشاء حساب جديد")
+    name = st.text_input("الاسم الكامل")
+    email = st.text_input("البريد الإلكتروني")
+    password = st.text_input("كلمة المرور", type="password")
+    weight = st.number_input("وزنك الحالي (كجم)", min_value=30.0, max_value=200.0, value=70.0)
+    height = st.number_input("طولك (سم)", min_value=100.0, max_value=250.0, value=170.0)
+    if st.button("🔐 تسجيل"): 
+        if register_user(name, email, password, weight, height):
+            st.success("🎉 تم إنشاء الحساب بنجاح! يمكنك الآن تسجيل الدخول.")
+        else:
+            st.error("⚠️ البريد الإلكتروني مسجل بالفعل.")
+
+elif choice == "تسجيل الدخول":
+    st.subheader("🔹 تسجيل الدخول")
+    email = st.text_input("البريد الإلكتروني")
+    password = st.text_input("كلمة المرور", type="password")
+    if st.button("🚀 دخول"):
+        user = login_user(email, password)
+        if user:
+            st.session_state["logged_in"] = True
+            st.session_state["user_id"] = user[0]
+            st.session_state["user_name"] = user[1]
+            st.success(f"🎉 مرحبًا، {user[1]}!")
+        else:
+            st.error("❌ البريد الإلكتروني أو كلمة المرور غير صحيحة.")
+
+if "logged_in" in st.session_state and st.session_state["logged_in"] and choice == "جدول التمارين":
     st.title("🔥 جدول تمرين Push Pull Legs")
     st.write("💪 جدول تمرين لمدة 6 أيام مناسب لزيادة الكتلة العضلية وتقليل الدهون.")
     selected_day = st.sidebar.selectbox("اختر اليوم", workout_data["اليوم"])
@@ -76,7 +110,8 @@ if "logged_in" in st.session_state and st.session_state["logged_in"]:
     for j, exercise in enumerate(workout_data["التمارين"][index]):
         st.write(f"{j+1}. {exercise}")
         st.video(workout_data["روابط الفيديو"][index][j])
-        exercise_weight = st.number_input(f"أدخل الوزن المستخدم في {exercise} (كجم)", min_value=0.0, max_value=500.0, value=0.0, key=f"weight_{index}_{j}")
+        exercise_weight = st.number_input(f"أدخل الوزن المستخدم في {exercise} (كجم)", 
+                                          min_value=0.0, max_value=500.0, value=0.0, key=f"weight_{index}_{j}")
         if st.button(f"💾 حفظ التقدم في {exercise}", key=f"save_{index}_{j}"):
             save_progress(st.session_state["user_id"], exercise, exercise_weight)
             st.success(f"✅ تم حفظ تقدمك في {exercise}!")
