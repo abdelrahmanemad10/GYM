@@ -235,6 +235,64 @@ if st.session_state.logged_in:
         st.subheader(f"{i}. {exercise}")
         st.video(video)
         
+   # ... (Previous imports and code remain the same until the Weight Tracking System section)
+
+# ------ Weight Tracking System ------
+def init_weight_tracking_db():
+    conn = sqlite3.connect('fitness_app.db')
+    c = conn.cursor()
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS weight_tracking (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL,
+            date TEXT NOT NULL,
+            day TEXT NOT NULL,
+            exercise TEXT NOT NULL,
+            weight REAL NOT NULL,
+            progress REAL DEFAULT 0
+        )
+    ''')
+    conn.commit()
+    return conn
+
+def save_weights_to_db(conn, username, date, day, exercises, weights):
+    c = conn.cursor()
+    for exercise, weight in zip(exercises, weights):
+        # Fetch the last weight for this exercise
+        c.execute('''
+            SELECT weight FROM weight_tracking
+            WHERE username = ? AND exercise = ?
+            ORDER BY date DESC
+            LIMIT 1
+        ''', (username, exercise))
+        last_weight = c.fetchone()
+        
+        # Calculate progress (difference between current and last weight)
+        progress = 0 if last_weight is None else weight - last_weight[0]
+        
+        # Insert the new record
+        c.execute('''
+            INSERT INTO weight_tracking (username, date, day, exercise, weight, progress)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (username, date, day, exercise, weight, progress))
+    conn.commit()
+
+def get_weight_history(conn, username):
+    c = conn.cursor()
+    c.execute('''
+        SELECT date, day, exercise, weight, progress FROM weight_tracking
+        WHERE username = ?
+        ORDER BY date DESC
+    ''', (username,))
+    return c.fetchall()
+
+# Initialize the weight tracking database
+weight_conn = init_weight_tracking_db()
+
+# ------ Main Interface ------
+if st.session_state.logged_in:
+    # ... (Previous sidebar and main content code remains the same)
+
     # ------ Weight Tracking System ------
     st.header("🏋️ تسجيل الأوزان")
     weights = []
@@ -243,15 +301,20 @@ if st.session_state.logged_in:
         weights.append(weight)
     
     if st.button("حفظ التقدم"):
-        history_df = pd.DataFrame({
-            "التاريخ": pd.Timestamp.now().strftime("%Y-%m-%d"),
-            "اليوم": selected_day,
-            "التمارين": workout_data["التمارين"][day_index],
-            "الأوزان": weights
-        })
-        history_df.to_csv("fitness_history.csv", mode="a", header=not os.path.exists("fitness_history.csv"), index=False)
+        current_date = pd.Timestamp.now().strftime("%Y-%m-%d")
+        save_weights_to_db(weight_conn, st.session_state.user_name, current_date, selected_day, workout_data["التمارين"][day_index], weights)
         st.success("تم الحفظ بنجاح!")
 
+    # Display Weight History
+    st.header("📊 تاريخ الأوزان")
+    weight_history = get_weight_history(weight_conn, st.session_state.user_name)
+    if weight_history:
+        history_df = pd.DataFrame(weight_history, columns=["التاريخ", "اليوم", "التمرين", "الوزن", "التقدم"])
+        st.dataframe(history_df)
+    else:
+        st.info("لا توجد سجلات للأوزان حتى الآن.")
+
+# ... (Rest of the code remains the same)
 else:
     st.title("اللياقة الذكية")
     st.markdown("""
