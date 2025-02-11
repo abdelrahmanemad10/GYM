@@ -3,10 +3,6 @@ import pandas as pd
 import requests
 import os
 import google.generativeai as genai
-
-import toml
-
-import os
 import toml
 
 secrets_path = os.path.join(os.getcwd(), "GYM", ".streamlit", "secrets.toml")
