@@ -5,6 +5,8 @@ import os
 import google.generativeai as genai
 import toml
 import streamlit as st
+from reportlab.pdfgen import canvas
+import io
 
 api_key = st.secrets["GOOGLE_API_KEY"]
 print("API Key:", api_key)
@@ -56,7 +58,7 @@ def generate_diet(age, weight, height, goal, preferences):
     - التفضيلات: {preferences}
     
     المتطلبات:
-    - اكتب باللغة العربية الفصحى
+    - اكتب باللغة العربية المصريه العاميه
     - استخدم جدولاً منظمًا
     - أدرج 5 وجبات يومية
     - اذكر السعرات الحرارية لكل وجبة
