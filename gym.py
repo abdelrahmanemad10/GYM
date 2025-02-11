@@ -106,7 +106,7 @@ def generate_pdf(diet_text):
     pdf.setTitle("الخطة الغذائية")
 
     # Register a font that supports Arabic
-    font_path = "fonts/Arial Unicode MS.ttf"  # Update this path if necessary
+    font_path = "fonts/Arial Unicode MS.ttf.TTF"  # Update this path if necessary
     pdfmetrics.registerFont(TTFont('ArialUnicode', font_path))
 
     # إعداد النصوص للطباعة بالعربية
