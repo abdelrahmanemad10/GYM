@@ -6,8 +6,15 @@ import google.generativeai as genai
 
 import toml
 
-secrets = toml.load("GYM/.streamlit/secrets.toml")  # تأكد من المسار الصحيح
+import os
+import toml
+
+secrets_path = os.path.join(os.getcwd(), "GYM", ".streamlit", "secrets.toml")
+print("Loading secrets from:", secrets_path)  # تأكد أن المسار صحيح
+
+secrets = toml.load(secrets_path)
 api_key = secrets["GOOGLE_API_KEY"]
+
 
 import genai
 genai.configure(api_key=api_key)
