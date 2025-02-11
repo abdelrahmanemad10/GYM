@@ -4,11 +4,11 @@ import requests
 import os
 import google.generativeai as genai
 import toml
-import streamlit as st
-from reportlab.pdfgen import canvas
 import io
-from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.pdfbase import pdfmetrics
 from arabic_reshaper import reshape
 from bidi.algorithm import get_display
 
@@ -78,12 +78,16 @@ def generate_pdf(diet_text):
     pdf = canvas.Canvas(buffer, pagesize=A4)
     pdf.setTitle("الخطة الغذائية")
 
+    # Register a font that supports Arabic
+    font_path = "fonts/Arial Unicode MS.ttf"  # Update this path if necessary
+    pdfmetrics.registerFont(TTFont('ArialUnicode', font_path))
+
     # إعداد النصوص للطباعة بالعربية
     reshaped_text = reshape(diet_text)
     bidi_text = get_display(reshaped_text)
 
     # رسم النص على ملف الـ PDF
-    pdf.setFont("Helvetica", 12)
+    pdf.setFont("ArialUnicode", 12)
     pdf.drawString(100, 800, "📋 خطتك الغذائية اليومية:")
     
     y = 780
