@@ -4,8 +4,15 @@ import requests
 import os
 import google.generativeai as genai
 
-# ------ إعدادات Gemini ------
-genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
+import toml
+
+secrets = toml.load("GYM/.streamlit/secrets.toml")  # تأكد من المسار الصحيح
+api_key = secrets["GOOGLE_API_KEY"]
+
+import genai
+genai.configure(api_key=api_key)
+
+print("API Key Loaded Successfully!")
 
 
 # ------ الدوال الأساسية ------
