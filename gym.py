@@ -46,7 +46,9 @@ def render_lottie_animation(lottie_json):
 def generate_diet(age, weight, height, goal, preferences):
     model = genai.GenerativeModel('gemini-pro')
     prompt = f"""
-    أنا أخصائي تغذية محترف، الرجاء إنشاء خطة غذائية يومية بناء على:
+    أنا أخصائي تغذية محترف، قم بإنشاء خطة غذائية يومية مناسبة للمصريين بميزانية متوسطة (80-100 جنيه يوميًا).
+    الخطة تحتوي على 5 وجبات: إفطار، سناك 1، غداء، سناك 2، عشاء.
+    الوجبات تشمل أطعمة متوفرة ورخيصة مثل الفول، البيض، التونة، الفراخ، الجبنة القريش. الرجاء إنشاء خطة غذائية يومية بناء على:
     - العمر: {age}
     - الوزن: {weight} كجم
     - الطول: {height} سم
@@ -66,6 +68,21 @@ def generate_diet(age, weight, height, goal, preferences):
         return response.text
     except Exception as e:
         return f"خطأ في توليد الخطة: {str(e)}"
+
+def generate_pdf(diet_plan):
+    buffer = io.BytesIO()
+    pdf = canvas.Canvas(buffer, pagesize=letter)
+    pdf.setTitle("الخطة الغذائية")
+    
+    pdf.drawString(100, 750, "الخطة الغذائية الخاصة بك:")
+    y = 730
+    for meal, details in diet_plan.items():
+        pdf.drawString(100, y, f"{meal}: {details}")
+        y -= 20
+    
+    pdf.save()
+    buffer.seek(0)
+    return buffer
 
 # ------ بيانات التمارين ------
 workout_data = {
