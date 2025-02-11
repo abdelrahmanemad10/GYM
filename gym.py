@@ -2,8 +2,8 @@ import streamlit as st
 import pandas as pd
 import requests
 import os
+import sqlite3
 import google.generativeai as genai
-import toml
 import io
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
@@ -12,10 +12,37 @@ from reportlab.pdfbase import pdfmetrics
 from arabic_reshaper import reshape
 from bidi.algorithm import get_display
 
-api_key = st.secrets["GOOGLE_API_KEY"]
-print("API Key:", api_key)
+# ------ Database Setup ------
+def init_db():
+    conn = sqlite3.connect('fitness_app.db')
+    c = conn.cursor()
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            password TEXT NOT NULL
+        )
+    ''')
+    conn.commit()
+    return conn
 
-# ------ الدوال الأساسية ------
+# ------ User Registration ------
+def register_user(conn, username, password):
+    c = conn.cursor()
+    try:
+        c.execute('INSERT INTO users (username, password) VALUES (?, ?)', (username, password))
+        conn.commit()
+        return True
+    except sqlite3.IntegrityError:
+        return False  # Username already exists
+
+# ------ User Login ------
+def login_user(conn, username, password):
+    c = conn.cursor()
+    c.execute('SELECT * FROM users WHERE username = ? AND password = ?', (username, password))
+    return c.fetchone() is not None
+
+# ------ Lottie Animation ------
 def load_lottieurl(url: str):
     try:
         headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
@@ -45,7 +72,7 @@ def render_lottie_animation(lottie_json):
         """
         st.components.v1.html(lottie_html, height=200)
 
-# ------ توليد الحمية الغذائية ------
+# ------ Diet Plan Generation ------
 def generate_diet(age, weight, height, goal, preferences):
     model = genai.GenerativeModel('gemini-pro')
     prompt = f"""
@@ -72,7 +99,7 @@ def generate_diet(age, weight, height, goal, preferences):
     except Exception as e:
         return f"خطأ في توليد الخطة: {str(e)}"
 
-# ------ توليد PDF وتنزيله ------
+# ------ PDF Generation ------
 def generate_pdf(diet_text):
     buffer = io.BytesIO()
     pdf = canvas.Canvas(buffer, pagesize=A4)
@@ -99,7 +126,7 @@ def generate_pdf(diet_text):
     buffer.seek(0)
     return buffer
 
-# ------ بيانات التمارين ------
+# ------ Workout Data ------
 workout_data = {
     "اليوم": ["Push 1", "Pull 1", "Legs 1", "Push 2", "Pull 2", "Legs 2"],
     "التمارين": [
@@ -120,7 +147,7 @@ workout_data = {
     ]
 }
 
-# ------ إدارة الحالة ------
+# ------ Session State Management ------
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
 if 'user_name' not in st.session_state:
@@ -128,27 +155,43 @@ if 'user_name' not in st.session_state:
 if 'diet_plan' not in st.session_state:
     st.session_state.diet_plan = None
 
-# ------ نظام تسجيل الدخول ------
-if not st.session_state.logged_in:
-    st.sidebar.title("🔐 تسجيل الدخول")
-    username = st.sidebar.text_input("اسم المستخدم")
-    password = st.sidebar.text_input("كلمة المرور", type="password")
-    
-    if st.sidebar.button("تسجيل الدخول"):
-        if username and password:
-            st.session_state.logged_in = True
-            st.session_state.user_name = username
-            st.sidebar.success("تم التسجيل بنجاح!")
-        else:
-            st.sidebar.error("الرجاء إدخال بيانات صحيحة")
+# ------ Database Connection ------
+conn = init_db()
 
-# ------ الواجهة الرئيسية ------
+# ------ Login/Registration System ------
+if not st.session_state.logged_in:
+    st.sidebar.title("🔐 تسجيل الدخول / التسجيل")
+    menu = st.sidebar.radio("اختر الإجراء", ["تسجيل الدخول", "التسجيل"])
+
+    if menu == "تسجيل الدخول":
+        username = st.sidebar.text_input("اسم المستخدم")
+        password = st.sidebar.text_input("كلمة المرور", type="password")
+        
+        if st.sidebar.button("تسجيل الدخول"):
+            if login_user(conn, username, password):
+                st.session_state.logged_in = True
+                st.session_state.user_name = username
+                st.sidebar.success("تم التسجيل بنجاح!")
+            else:
+                st.sidebar.error("اسم المستخدم أو كلمة المرور غير صحيحة")
+
+    elif menu == "التسجيل":
+        new_username = st.sidebar.text_input("اسم المستخدم الجديد")
+        new_password = st.sidebar.text_input("كلمة المرور الجديدة", type="password")
+        
+        if st.sidebar.button("إنشاء حساب"):
+            if register_user(conn, new_username, new_password):
+                st.sidebar.success("تم إنشاء الحساب بنجاح! يمكنك تسجيل الدخول الآن.")
+            else:
+                st.sidebar.error("اسم المستخدم موجود بالفعل")
+
+# ------ Main Interface ------
 if st.session_state.logged_in:
-    # ------ الشريط الجانبي ------
+    # ------ Sidebar ------
     with st.sidebar:
         st.title(f"مرحبًا {st.session_state.user_name}!")
         
-        # قسم الحمية الغذائية
+        # Diet Plan Section
         with st.expander("🍏 خطة التغذية الشخصية"):
             age = st.number_input("العمر", 18, 80, 25)
             weight = st.number_input("الوزن (كجم)", 30.0, 150.0, 70.0)
@@ -165,7 +208,7 @@ if st.session_state.logged_in:
             st.subheader("📋 خطتك الغذائية")
             st.markdown(st.session_state.diet_plan)
             
-            # زر تحميل PDF
+            # Download PDF Button
             if st.button("📥 تحميل الخطة كملف PDF"):
                 pdf_buffer = generate_pdf(st.session_state.diet_plan)
                 st.download_button(
@@ -180,7 +223,7 @@ if st.session_state.logged_in:
             st.session_state.user_name = ""
             st.experimental_rerun()
 
-    # ------ المحتوى الرئيسي ------
+    # ------ Main Content ------
     st.title("🔥 برنامج اللياقة المتكامل")
     render_lottie_animation(load_lottieurl("https://assets10.lottiefiles.com/packages/lf20_5ngs2ksb.json"))
     
@@ -192,7 +235,7 @@ if st.session_state.logged_in:
         st.subheader(f"{i}. {exercise}")
         st.video(video)
         
-    # ------ نظام تتبع الأوزان ------
+    # ------ Weight Tracking System ------
     st.header("🏋️ تسجيل الأوزان")
     weights = []
     for exercise in workout_data["التمارين"][day_index]:
