@@ -2,22 +2,22 @@ import streamlit as st
 import pandas as pd
 import requests
 import os
+import google.generativeai as genai
 
-# Function to load Lottie animations with error handling
+# ------ إعدادات Gemini ------
+genai.configure(api_key=st.secrets['GOOGLE_API_KEY'])
+
+# ------ الدوال الأساسية ------
 def load_lottieurl(url: str):
     try:
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3",
-            "Accept": "application/json",
-        }
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
         r = requests.get(url, headers=headers, timeout=10)
-        r.raise_for_status()  # Raise exception for bad status codes
+        r.raise_for_status()
         return r.json()
-    except requests.exceptions.RequestException as e:
-        st.error(f"Error loading animation: {str(e)}")
+    except Exception as e:
+        st.error(f"خطأ في تحميل الرسوم المتحركة: {str(e)}")
         return None
 
-# Function to render Lottie animation using HTML
 def render_lottie_animation(lottie_json):
     if lottie_json:
         lottie_html = f"""
@@ -36,10 +36,33 @@ def render_lottie_animation(lottie_json):
         </script>
         """
         st.components.v1.html(lottie_html, height=200)
-    else:
-        st.warning("Animation could not be loaded")
 
-# جدول التمارين
+# ------ توليد الحمية الغذائية ------
+def generate_diet(age, weight, height, goal, preferences):
+    model = genai.GenerativeModel('gemini-pro')
+    prompt = f"""
+    أنا أخصائي تغذية محترف، الرجاء إنشاء خطة غذائية يومية بناء على:
+    - العمر: {age}
+    - الوزن: {weight} كجم
+    - الطول: {height} سم
+    - الهدف: {goal}
+    - التفضيلات: {preferences}
+    
+    المتطلبات:
+    - اكتب باللغة العربية الفصحى
+    - استخدم جدولاً منظمًا
+    - أدرج 5 وجبات يومية
+    - اذكر السعرات الحرارية لكل وجبة
+    - قدم نصائح صحية عامة
+    - تجنب المصطلحات المعقدة
+    """
+    try:
+        response = model.generate_content(prompt)
+        return response.text
+    except Exception as e:
+        return f"خطأ في توليد الخطة: {str(e)}"
+
+# ------ بيانات التمارين ------
 workout_data = {
     "اليوم": ["Push 1", "Pull 1", "Legs 1", "Push 2", "Pull 2", "Legs 2"],
     "التمارين": [
@@ -60,96 +83,93 @@ workout_data = {
     ]
 }
 
-# File to store exercise weights history
-history_file = "exercise_weights_history.csv"
-
-# Load history if it exists
-if os.path.exists(history_file):
-    history_df = pd.read_csv(history_file)
-else:
-    history_df = pd.DataFrame(columns=["User", "Day", "Exercise", "Weight"])
-
-# Initialize session state for login
+# ------ إدارة الحالة ------
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
 if 'user_name' not in st.session_state:
     st.session_state.user_name = ""
+if 'diet_plan' not in st.session_state:
+    st.session_state.diet_plan = None
 
-# Login form
+# ------ نظام تسجيل الدخول ------
 if not st.session_state.logged_in:
     st.sidebar.title("🔐 تسجيل الدخول")
-    user_name = st.sidebar.text_input("اسم المستخدم")
-    user_password = st.sidebar.text_input("كلمة المرور", type="password")
-    login_button = st.sidebar.button("تسجيل الدخول")
-
-    if login_button:
-        # Simple authentication (replace with proper authentication in production)
-        if user_name and user_password:  # Basic validation
+    username = st.sidebar.text_input("اسم المستخدم")
+    password = st.sidebar.text_input("كلمة المرور", type="password")
+    
+    if st.sidebar.button("تسجيل الدخول"):
+        if username and password:
             st.session_state.logged_in = True
-            st.session_state.user_name = user_name
-            st.sidebar.success(f"تم تسجيل الدخول بنجاح! مرحبًا، {user_name}")
+            st.session_state.user_name = username
+            st.sidebar.success("تم التسجيل بنجاح!")
         else:
-            st.sidebar.error("يرجى ملء جميع الحقول")
-else:
-    st.sidebar.success(f"مرحبًا، {st.session_state.user_name}!")
-    if st.sidebar.button("تسجيل الخروج"):
-        st.session_state.logged_in = False
-        st.session_state.user_name = ""
-        st.experimental_rerun()
+            st.sidebar.error("الرجاء إدخال بيانات صحيحة")
 
-# Main content
+# ------ الواجهة الرئيسية ------
 if st.session_state.logged_in:
-    st.title("🔥 جدول تمرين Push Pull Legs")
-    st.write("💪 جدول تمرين لمدة 6 أيام مناسب لزيادة الكتلة العضلية وتقليل الدهون.")
-
-    # Load and display Lottie animation
-    lottie_animation = load_lottieurl("https://assets10.lottiefiles.com/packages/lf20_5ngs2ksb.json")
-    render_lottie_animation(lottie_animation)
-
-    selected_day = st.sidebar.selectbox("اختر اليوم", workout_data["اليوم"])
-
-    index = workout_data["اليوم"].index(selected_day)
-    st.header(f"📌 اليوم: {selected_day}")
-
-    current_session_weights = []
-
-    for j, exercise in enumerate(workout_data["التمارين"][index]):
-        st.write(f"{j+1}. {exercise}")
+    # ------ الشريط الجانبي ------
+    with st.sidebar:
+        st.title(f"مرحبًا {st.session_state.user_name}!")
         
-        # Handle video URLs
-        video_url = workout_data["روابط الفيديو"][index][j]
-        if video_url.startswith("http"):
-            st.video(video_url)
-        else:
-            st.warning("رابط الفيديو غير صالح")
+        # قسم الحمية الغذائية
+        with st.expander("🍏 خطة التغذية الشخصية"):
+            age = st.number_input("العمر", 18, 80, 25)
+            weight = st.number_input("الوزن (كجم)", 30.0, 150.0, 70.0)
+            height = st.number_input("الطول (سم)", 140, 220, 170)
+            goal = st.selectbox("الهدف", ["خسارة الوزن", "بناء العضلات", "الحفاظ على الوزن"])
+            preferences = st.multiselect("التفضيلات", ["نباتي", "قليل السكر", "عالي البروتين", "خالي من الجلوتين"])
+            
+            if st.button("🎯 توليد الخطة"):
+                diet = generate_diet(age, weight, height, goal, ", ".join(preferences))
+                st.session_state.diet_plan = diet
+                
+        if st.session_state.diet_plan:
+            st.divider()
+            st.subheader("📋 خطتك الغذائية")
+            st.markdown(st.session_state.diet_plan)
+            
+        if st.button("تسجيل الخروج"):
+            st.session_state.logged_in = False
+            st.session_state.user_name = ""
+            st.experimental_rerun()
+
+    # ------ المحتوى الرئيسي ------
+    st.title("🔥 برنامج اللياقة المتكامل")
+    render_lottie_animation(load_lottieurl("https://assets10.lottiefiles.com/packages/lf20_5ngs2ksb.json"))
+    
+    selected_day = st.selectbox("اختر يوم التمرين", workout_data["اليوم"])
+    day_index = workout_data["اليوم"].index(selected_day)
+    
+    st.header(f"اليوم: {selected_day}")
+    for i, (exercise, video) in enumerate(zip(workout_data["التمارين"][day_index], workout_data["روابط الفيديو"][day_index]), 1):
+        st.subheader(f"{i}. {exercise}")
+        st.video(video)
         
-        exercise_weight = st.number_input(
-            f"أدخل الوزن المستخدم في {exercise} (كجم)",
-            min_value=0.0,
-            max_value=500.0,
-            value=0.0,
-            key=f"weight_{index}_{j}"
-        )
-        current_session_weights.append({
-            "User": st.session_state.user_name,
-            "Day": selected_day,
-            "Exercise": exercise,
-            "Weight": exercise_weight
+    # ------ نظام تتبع الأوزان ------
+    st.header("🏋️ تسجيل الأوزان")
+    weights = []
+    for exercise in workout_data["التمارين"][day_index]:
+        weight = st.number_input(f"الوزن لـ {exercise} (كجم)", 0.0, 300.0, 0.0, key=f"weight_{exercise}")
+        weights.append(weight)
+    
+    if st.button("حفظ التقدم"):
+        history_df = pd.DataFrame({
+            "التاريخ": pd.Timestamp.now().strftime("%Y-%m-%d"),
+            "اليوم": selected_day,
+            "التمارين": workout_data["التمارين"][day_index],
+            "الأوزان": weights
         })
+        history_df.to_csv("fitness_history.csv", mode="a", header=not os.path.exists("fitness_history.csv"), index=False)
+        st.success("تم الحفظ بنجاح!")
 
-    if st.button("حفظ الأوزان"):
-        new_history_df = pd.DataFrame(current_session_weights)
-        history_df = pd.concat([history_df, new_history_df], ignore_index=True)
-        history_df.to_csv(history_file, index=False)
-        st.success("تم حفظ الأوزان بنجاح!")
-
-    st.header("📜 تاريخ الأوزان")
-    user_history_df = history_df[history_df["User"] == st.session_state.user_name]
-    if not user_history_df.empty:
-        st.dataframe(user_history_df)
-    else:
-        st.write("لا يوجد تاريخ للأوزان لهذا المستخدم.")
-
-    st.write("✅ تأكد من زيادة الأحمال تدريجيًا والتغذية السليمة.")
 else:
-    st.title("🔐 يرجى تسجيل الدخول للوصول إلى جدول التمرين")
+    st.title("اللياقة الذكية")
+    st.markdown("""
+    ## 🔐 يرجى تسجيل الدخول
+    قم بتسجيل الدخول من الشريط الجانبي للوصول إلى:
+    - برنامج التمارين المتكامل
+    - خطط التغذية الذكية
+    - تتبع التقدم الرياضي
+    - إحصائيات شخصية
+    """)
+    render_lottie_animation(load_lottieurl("https://assets1.lottiefiles.com/packages/lf20_5itoumpj.json"))
