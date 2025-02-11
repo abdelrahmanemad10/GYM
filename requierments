@@ -2,3 +2,4 @@ pandas
 sqlite3
 streamlit
 requests
+google-generativeai
