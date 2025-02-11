@@ -1,5 +1,4 @@
-pandas
-sqlite3
 streamlit
+pandas
 requests
 google-generativeai
