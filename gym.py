@@ -114,7 +114,7 @@ def generate_pdf(diet_text):
     bidi_text = get_display(reshaped_text)
 
     # رسم النص على ملف الـ PDF
-    pdf.setFont("ArialUnicode", 12)
+    pdf.setFont("ArialUnicode", 6)
     pdf.drawString(100, 800, "📋 خطتك الغذائية اليومية:")
     
     y = 780
