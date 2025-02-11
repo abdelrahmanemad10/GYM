@@ -5,7 +5,8 @@ import os
 import google.generativeai as genai
 
 # ------ إعدادات Gemini ------
-genai.configure(api_key=st.secrets['AIzaSyCtIffUrtXoRAQKRUM8dohxop3YM34dfQc'])
+genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
+
 
 # ------ الدوال الأساسية ------
 def load_lottieurl(url: str):
