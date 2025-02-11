@@ -74,39 +74,6 @@ def generate_diet(age, weight, height, goal, preferences):
         return response.text
     except Exception as e:
         return f"خطأ في توليد الخطة: {str(e)}"
-# ------ توليد PDF وتنزيله ------
-if st.session_state.diet_plan:
-    if st.button("📥 تحميل الخطة كملف PDF"):
-        pdf_buffer = generate_pdf(st.session_state.diet_plan)
-        st.download_button(
-            label="📄 اضغط هنا لتحميل الحمية الغذائية",
-            data=pdf_buffer,
-            file_name="حمية_غذائية.pdf",
-            mime="application/pdf"
-        )
-
-
-def generate_pdf(diet_text):
-    buffer = io.BytesIO()
-    pdf = canvas.Canvas(buffer, pagesize=A4)
-    pdf.setTitle("الخطة الغذائية")
-
-    # إعداد النصوص للطباعة بالعربية
-    reshaped_text = reshape(diet_text)
-    bidi_text = get_display(reshaped_text)
-
-    # رسم النص على ملف الـ PDF
-    pdf.setFont("Helvetica", 12)
-    pdf.drawString(100, 800, "📋 خطتك الغذائية اليومية:")
-    
-    y = 780
-    for line in bidi_text.split("\n"):
-        pdf.drawString(100, y, line)
-        y -= 20
-
-    pdf.save()
-    buffer.seek(0)
-    return buffer
 
 
 # ------ بيانات التمارين ------
