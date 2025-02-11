@@ -4,3 +4,6 @@ requests
 google-generativeai
 reportlab
 toml
+reportlab
+arabic-reshaper
+python-bidi
