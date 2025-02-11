@@ -10,10 +10,6 @@ api_key = st.secrets["GOOGLE_API_KEY"]
 print("API Key:", api_key)
 
 
-import genai
-genai.configure(api_key=api_key)
-
-print("API Key Loaded Successfully!")
 
 
 # ------ الدوال الأساسية ------
