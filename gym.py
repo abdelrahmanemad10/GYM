@@ -13,16 +13,142 @@ from arabic_reshaper import reshape
 from bidi.algorithm import get_display
 import logging
 from datetime import datetime
+from streamlit_lottie import st_lottie  # For Lottie animations
 
-# Configure logging
+# ------ Configure Logging ------
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# ------ Lottie Animation Functions ------
+def load_lottieurl(url: str):
+    r = requests.get(url)
+    if r.status_code != 200:
+        return None
+    return r.json()
+
+def render_lottie_animation(lottie_json, height=200):
+    if lottie_json:
+        st_lottie(lottie_json, height=height)
+    else:
+        st.error("Failed to load animation")
+
+# ------ Workout Data ------
+workout_data = {
+    "اليوم": [
+        "اليوم الأول - الدفع (Push 1) - الصدر والأكتاف والترايسبس",
+        "اليوم الثاني - السحب (Pull 1) - الظهر والبايسبس والسواعد",
+        "اليوم الثالث - الأرجل (Legs 1) - الرجلين والسمانة",
+        "اليوم الرابع - الدفع (Push 2) - الصدر والأكتاف والترايسبس",
+        "اليوم الخامس - السحب (Pull 2) - الظهر والبايسبس والسواعد",
+        "اليوم السادس - الأرجل (Legs 2) - الرجلين والسمانة"
+    ],
+    "التمارين": [
+        # Push 1 - الصدر والأكتاف والترايسبس
+        [
+            "تمرين الضغط بالبار",
+            "تمرين الدامبلز على المقعد المائل",
+            "رفرفة جانبية بالدامبلز",
+            "ضغط الكتف بالبار",
+            "تمرين الترايسبس بالحبل"
+        ],
+        # Pull 1 - الظهر والبايسبس والسواعد
+        [
+            "تمرين السحب الأمامي",
+            "تمرين العقلة",
+            "الشد العمودي بالبار",
+            "تمرين البايسبس بالدامبلز",
+            "تمرين تقوية الساعد بالمطرقة"
+        ],
+        # Legs 1 - الأرجل
+        [
+            "تمرين القرفصاء بالبار",
+            "تمرين الرفعة الميتة الرومانية",
+            "تمرين الطعن بالدامبلز",
+            "تمرين سمانة واقف بالبار",
+            "تمرين الساق الخلفية بالآلة"
+        ],
+        # Push 2 - الصدر والأكتاف والترايسبس (تنويع التمارين)
+        [
+            "تمرين الضغط بالدامبلز على المقعد المستوي",
+            "تمرين الضغط المائل بالبار",
+            "تمرين الأكتاف بالكابل من الأمام",
+            "تمرين الضغط الفرنسي للترايسبس",
+            "تمرين الترايسبس بالدمبل خلف الرأس"
+        ],
+        # Pull 2 - الظهر والبايسبس والسواعد (تنويع التمارين)
+        [
+            "تمرين السحب الأرضي بالبار",
+            "تمرين التجديف بالدامبل بيد واحدة",
+            "تمرين سحب الوجه بالكابل",
+            "تمرين تركيز البايسبس",
+            "تمرين لف المعصم (Wrist Curl)"
+        ],
+        # Legs 2 - الأرجل (تنويع التمارين)
+        [
+            "تمرين الرفعة الميتة التقليدية",
+            "تمرين الطعن المتقدم بالدامبلز",
+            "تمرين الدفع بالماكينة (Leg Press)",
+            "تمرين سمانة جالس بالماكينة",
+            "تمرين تمديد الساق (Leg Extension)"
+        ]
+    ],
+    "روابط الفيديو": [
+        # Push 1
+        [
+            "https://www.youtube.com/watch?v=rT7DgCr-3pg",  # Bench Press
+            "https://www.youtube.com/watch?v=8iPEnn-ltC8",  # Incline Dumbbell Press
+            "https://www.youtube.com/watch?v=kDqklk1ZEsI",  # Lateral Raises
+            "https://www.youtube.com/watch?v=2yjwXTZQDDI",  # Overhead Shoulder Press
+            "https://www.youtube.com/watch?v=vB5OHsJ3EME"   # Triceps Rope Pushdown
+        ],
+        # Pull 1
+        [
+            "https://www.youtube.com/watch?v=CAwf7n6Luuc",  # Lat Pulldown
+            "https://www.youtube.com/watch?v=eGo4IYlbE5g",  # Pull-ups
+            "https://www.youtube.com/watch?v=GZbfZ033f74",  # Barbell Row
+            "https://www.youtube.com/watch?v=ykJmrZ5v0Oo",  # Dumbbell Bicep Curls
+            "https://www.youtube.com/watch?v=zC3nLlEvin4"   # Hammer Curls
+        ],
+        # Legs 1
+        [
+            "https://www.youtube.com/watch?v=Q_CuIKf227A",  # Barbell Squat
+            "https://www.youtube.com/watch?v=U3HlEF_E9fo",  # Romanian Deadlift
+            "https://www.youtube.com/watch?v=D7KaRcUTQeE",  # Dumbbell Lunges
+            "https://www.youtube.com/watch?v=-M4-G8p8fmc",  # Standing Calf Raises
+            "https://www.youtube.com/watch?v=1Tq3QdYUuHs"   # Leg Curl Machine
+        ],
+        # Push 2
+        [
+            "https://www.youtube.com/watch?v=VmB1G1K7v94",  # Flat Dumbbell Press
+            "https://www.youtube.com/watch?v=MYIz9wq0G3A",  # Incline Barbell Press
+            "https://www.youtube.com/watch?v=F3QY5vMz_6I",  # Front Cable Raise
+            "https://www.youtube.com/watch?v=3ml7BH7mNwQ",  # French Press (Triceps)
+            "https://www.youtube.com/watch?v=nRiJVZDpdL0"   # Overhead Dumbbell Triceps Extension
+        ],
+        # Pull 2
+        [
+            "https://www.youtube.com/watch?v=pYcpY20QaE8",  # Seated Cable Row
+            "https://www.youtube.com/watch?v=roCP6wCXPqo",  # One-Arm Dumbbell Row
+            "https://www.youtube.com/watch?v=HSoHeSjvIdY",  # Face Pulls
+            "https://www.youtube.com/watch?v=kwG2ipFRgfo",  # Concentration Curl
+            "https://www.youtube.com/watch?v=8bFtlHqSeNg"   # Wrist Curl
+        ],
+        # Legs 2
+        [
+            "https://www.youtube.com/watch?v=ytGaGIn3SjE",  # Conventional Deadlift
+            "https://www.youtube.com/watch?v=D7KaRcUTQeE",  # Dumbbell Step Lunges
+            "https://www.youtube.com/watch?v=IZxyjW7MPJQ",  # Leg Press Machine
+            "https://www.youtube.com/watch?v=1boutFjfjpU",  # Seated Calf Raises
+            "https://www.youtube.com/watch?v=YyvSfVjQeL0"   # Leg Extension Machine
+        ]
+    ]
+}
+
+
 # ------ Database Setup ------
 def init_db():
-    # Get the directory of the current script
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    db_path = os.path.join(script_dir, 'fitness_app.db')  # Database will be saved in the same directory as the script
+    db_path = os.path.join(script_dir, 'fitness_app.db')
     conn = sqlite3.connect(db_path)
     c = conn.cursor()
     c.execute('''
@@ -103,6 +229,40 @@ def get_weight_history(conn, username):
         ORDER BY date DESC
     ''', (username,))
     return c.fetchall()
+
+# ------ Diet Generation Function ------
+def generate_diet(age, weight, height, goal, preferences):
+    return f"""
+    🥗 خطة تغذية مخصصة:
+    - الهدف: {goal}
+    - التفضيلات: {preferences}
+    - الإفطار: 3 بيضات + خضار سوتيه
+    - الغداء: 200 جرام صدر دجاج + أرز بني
+    - العشاء: سمك مشوي + سلطة خضراء
+    """
+
+# ------ PDF Generation Function ------
+def generate_pdf(content):
+    buffer = io.BytesIO()
+    c = canvas.Canvas(buffer, pagesize=A4)
+    
+    # Register Arabic font
+    pdfmetrics.registerFont(TTFont('Arabic', 'arial.ttf'))
+    
+    # Reshape and convert Arabic text
+    reshaped_text = reshape(content)
+    bidi_text = get_display(reshaped_text)
+    
+    # Draw text on PDF
+    c.setFont("Arabic", 12)
+    text = c.beginText(40, 800)
+    text.textLines(bidi_text)
+    c.drawText(text)
+    
+    c.showPage()
+    c.save()
+    buffer.seek(0)
+    return buffer
 
 # ------ Main Interface ------
 if 'logged_in' not in st.session_state:
@@ -186,7 +346,7 @@ if st.session_state.logged_in:
 
     # ------ Main Content ------
     st.title("🔥 برنامج اللياقة المتكامل")
-    render_lottie_animation(load_lottieurl("https://lottie.host/c8630a39-411d-452d-9464-c86ed2fe98e1/X7b1fqduB5.lottie"))
+    render_lottie_animation(load_lottieurl("https://assets10.lottiefiles.com/packages/lf20_5ngs2ksb.json"))
     
     selected_day = st.selectbox("اختر يوم التمرين", workout_data["اليوم"])
     day_index = workout_data["اليوم"].index(selected_day)
@@ -227,4 +387,4 @@ else:
     - تتبع التقدم الرياضي
     - إحصائيات شخصية
     """)
-    render_lottie_animation(load_lottieurl( "https://lottie.host/c8630a39-411d-452d-9464-c86ed2fe98e1/X7b1fqduB5.lottie"))
+    render_lottie_animation(load_lottieurl("https://lottie.host/c8630a39-411d-452d-9464-c86ed2fe98e1/X7b1fqduB5.lottie"))
