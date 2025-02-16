@@ -7,3 +7,4 @@ toml
 reportlab
 arabic-reshaper
 python-bidi
+streamlit_lottie
