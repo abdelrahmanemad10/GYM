@@ -19,6 +19,10 @@ from streamlit_lottie import st_lottie  # For Lottie animations
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# ------ Configure Gemini API ------
+genai.configure(api_key="AIzaSyCtIffUrtXoRAQKRUM8dohxop3YM34dfQc")  # Replace with your Gemini API key
+model = genai.GenerativeModel('gemini-pro')
+
 # ------ Lottie Animation Functions ------
 def load_lottieurl(url: str):
     r = requests.get(url)
@@ -144,7 +148,6 @@ workout_data = {
     ]
 }
 
-
 # ------ Database Setup ------
 def init_db():
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -230,16 +233,15 @@ def get_weight_history(conn, username):
     ''', (username,))
     return c.fetchall()
 
-# ------ Diet Generation Function ------
+# ------ Diet Generation Function with Gemini ------
 def generate_diet(age, weight, height, goal, preferences):
-    return f"""
-    🥗 خطة تغذية مخصصة:
-    - الهدف: {goal}
-    - التفضيلات: {preferences}
-    - الإفطار: 3 بيضات + خضار سوتيه
-    - الغداء: 200 جرام صدر دجاج + أرز بني
-    - العشاء: سمك مشوي + سلطة خضراء
+    prompt = f"""
+    أنا أبلغ من العمر {age} عامًا، ووزني {weight} كجم، وطولي {height} سم. هدفي هو {goal}.
+    تفضيلاتي الغذائية هي: {', '.join(preferences)}.
+    الرجاء إنشاء خطة غذائية يومية مناسبة لي.
     """
+    response = model.generate_content(prompt)
+    return response.text
 
 # ------ PDF Generation Function ------
 def generate_pdf(content):
@@ -321,7 +323,7 @@ if st.session_state.logged_in:
             preferences = st.multiselect("التفضيلات", ["نباتي", "قليل السكر", "عالي البروتين", "خالي من الجلوتين"])
             
             if st.button("🎯 توليد الخطة"):
-                diet = generate_diet(age, weight, height, goal, ", ".join(preferences))
+                diet = generate_diet(age, weight, height, goal, preferences)
                 st.session_state.diet_plan = diet
                 
         if st.session_state.diet_plan:
