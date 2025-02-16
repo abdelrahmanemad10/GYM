@@ -11,10 +11,19 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfbase import pdfmetrics
 from arabic_reshaper import reshape
 from bidi.algorithm import get_display
+import logging
+from datetime import datetime
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # ------ Database Setup ------
 def init_db():
-    conn = sqlite3.connect('fitness_app.db')
+    # Get the directory of the current script
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    db_path = os.path.join(script_dir, 'fitness_app.db')  # Database will be saved in the same directory as the script
+    conn = sqlite3.connect(db_path)
     c = conn.cursor()
     c.execute('''
         CREATE TABLE IF NOT EXISTS users (
@@ -23,8 +32,32 @@ def init_db():
             password TEXT NOT NULL
         )
     ''')
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS weight_tracking (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL,
+            date TEXT NOT NULL,
+            day TEXT NOT NULL,
+            exercise TEXT NOT NULL,
+            weight REAL NOT NULL,
+            progress REAL DEFAULT 0
+        )
+    ''')
     conn.commit()
     return conn
+
+# ------ Backup Database ------
+def backup_db():
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    backup_dir = os.path.join(script_dir, "backups")
+    if not os.path.exists(backup_dir):
+        os.makedirs(backup_dir)
+    backup_file = os.path.join(backup_dir, f"fitness_app_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db")
+    db_path = os.path.join(script_dir, 'fitness_app.db')
+    with open(db_path, 'rb') as f:
+        with open(backup_file, 'wb') as b:
+            b.write(f.read())
+    logger.info(f"Database backed up to {backup_file}")
 
 # ------ User Registration ------
 def register_user(conn, username, password):
@@ -42,112 +75,36 @@ def login_user(conn, username, password):
     c.execute('SELECT * FROM users WHERE username = ? AND password = ?', (username, password))
     return c.fetchone() is not None
 
-# ------ Lottie Animation ------
-def load_lottieurl(url: str):
-    try:
-        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
-        r = requests.get(url, headers=headers, timeout=10)
-        r.raise_for_status()
-        return r.json()
-    except Exception as e:
-        st.error(f"خطأ في تحميل الرسوم المتحركة: {str(e)}")
-        return None
+# ------ Save Weights to DB ------
+def save_weights_to_db(conn, username, date, day, exercises, weights):
+    c = conn.cursor()
+    for exercise, weight in zip(exercises, weights):
+        c.execute('''
+            SELECT weight FROM weight_tracking
+            WHERE username = ? AND exercise = ?
+            ORDER BY date DESC
+            LIMIT 1
+        ''', (username, exercise))
+        last_weight = c.fetchone()
+        progress = 0 if last_weight is None else weight - last_weight[0]
+        c.execute('''
+            INSERT INTO weight_tracking (username, date, day, exercise, weight, progress)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (username, date, day, exercise, weight, progress))
+    conn.commit()
+    logger.info(f"Weights saved for user {username} on {date}")
 
-def render_lottie_animation(lottie_json):
-    if lottie_json:
-        lottie_html = f"""
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.7.6/lottie.min.js"></script>
-        <div id="lottie"></div>
-        <script>
-            var animationData = {lottie_json};
-            var params = {{
-                container: document.getElementById('lottie'),
-                renderer: 'svg',
-                loop: true,
-                autoplay: true,
-                animationData: animationData
-            }};
-            lottie.loadAnimation(params);
-        </script>
-        """
-        st.components.v1.html(lottie_html, height=200)
+# ------ Get Weight History ------
+def get_weight_history(conn, username):
+    c = conn.cursor()
+    c.execute('''
+        SELECT date, day, exercise, weight, progress FROM weight_tracking
+        WHERE username = ?
+        ORDER BY date DESC
+    ''', (username,))
+    return c.fetchall()
 
-# ------ Diet Plan Generation ------
-def generate_diet(age, weight, height, goal, preferences):
-    model = genai.GenerativeModel('gemini-pro')
-    prompt = f"""
-    أنا أخصائي تغذية محترف، قم بإنشاء خطة غذائية يومية مناسبة للمصريين بميزانية متوسطة (80-100 جنيه يوميًا).
-    الخطة تحتوي على 5 وجبات: إفطار، سناك 1، غداء، سناك 2، عشاء.
-    الوجبات تشمل أطعمة متوفرة ورخيصة مثل الفول، البيض، التونة، الفراخ، الجبنة القريش. الرجاء إنشاء خطة غذائية يومية بناء على:
-    - العمر: {age}
-    - الوزن: {weight} كجم
-    - الطول: {height} سم
-    - الهدف: {goal}
-    - التفضيلات: {preferences}
-    
-    المتطلبات:
-    - اكتب باللغة العربية المصريه العاميه
-    - استخدم جدولاً منظمًا
-    - أدرج 5 وجبات يومية
-    - اذكر السعرات الحرارية لكل وجبة
-    - قدم نصائح صحية عامة
-    - تجنب المصطلحات المعقدة
-    """
-    try:
-        response = model.generate_content(prompt)
-        return response.text
-    except Exception as e:
-        return f"خطأ في توليد الخطة: {str(e)}"
-
-# ------ PDF Generation ------
-def generate_pdf(diet_text):
-    buffer = io.BytesIO()
-    pdf = canvas.Canvas(buffer, pagesize=A4)
-    pdf.setTitle("الخطة الغذائية")
-
-    # Register a font that supports Arabic
-    font_path = "fonts/Arial Unicode MS.ttf.TTF"  # Update this path if necessary
-    pdfmetrics.registerFont(TTFont('ArialUnicode', font_path))
-
-    # إعداد النصوص للطباعة بالعربية
-    reshaped_text = reshape(diet_text)
-    bidi_text = get_display(reshaped_text)
-
-    # رسم النص على ملف الـ PDF
-    pdf.setFont("ArialUnicode", 6)
-    pdf.drawString(100, 800, "📋 خطتك الغذائية اليومية:")
-    
-    y = 780
-    for line in bidi_text.split("\n"):
-        pdf.drawString(100, y, line)
-        y -= 20
-
-    pdf.save()
-    buffer.seek(0)
-    return buffer
-
-# ------ Workout Data ------
-workout_data = {
-    "اليوم": ["Push 1", "Pull 1", "Legs 1", "Push 2", "Pull 2", "Legs 2"],
-    "التمارين": [
-        ["Bench Press", "Incline Dumbbell Press", "Overhead Shoulder Press", "Lateral Raises", "Dips", "Cable Triceps Pushdown"],
-        ["Deadlift", "Pull-Ups", "Barbell Row", "Face Pulls", "Barbell Biceps Curl", "Hammer Curl"],
-        ["Squat", "Romanian Deadlift", "Leg Press", "Leg Curl", "Standing Calf Raises"],
-        ["Incline Barbell Press", "Dumbbell Shoulder Press", "Cable Flys", "Lateral Raises (Drop Set)", "Skull Crushers", "Rope Triceps Extensions"],
-        ["Rack Pulls", "Lat Pulldown", "Seated Cable Row", "Reverse Flys", "Concentration Curl", "Preacher Curl"],
-        ["Front Squat", "Bulgarian Split Squat", "Lying Hamstring Curl", "Seated Calf Raises", "Ab Wheel Rollouts"]
-    ],
-    "روابط الفيديو": [
-        ["https://www.youtube.com/watch?v=rT7DgCr-3pg", "https://www.youtube.com/watch?v=8iPEnn-ltC8", "https://www.youtube.com/watch?v=HzIiNhHhhtA", "https://www.youtube.com/watch?v=3VcKaXpzqRo", "https://www.youtube.com/watch?v=2z8JmcrW-As", "https://www.youtube.com/watch?v=vB5OHsJ3EME"],
-        ["https://www.youtube.com/watch?v=1ZXobu7JvvE", "https://www.youtube.com/watch?v=LHDNcCw7kF8", "https://www.youtube.com/watch?v=GZbfZ033f74", "https://www.youtube.com/watch?v=VT-O6YIP-II", "https://www.youtube.com/watch?v=kwG2ipFRgfo", "https://www.youtube.com/watch?v=TwD-YGVP4Bk"],
-        ["https://www.youtube.com/watch?v=YaXPRqUwItQ", "https://www.youtube.com/watch?v=2SHsk9AzdjA", "https://www.youtube.com/watch?v=IZxyjW7MPJQ", "https://www.youtube.com/watch?v=1Tq3QdYUuHs", "https://www.youtube.com/shorts/IrrmU7_swBI"],
-        ["https://www.youtube.com/watch?v=lJ2o89kcnxY", "https://www.youtube.com/watch?v=B-aVuyhvLHU", "https://www.youtube.com/watch?v=taI4XduLpTk", "https://www.youtube.com/watch?v=3VcKaXpzqRo", "https://www.youtube.com/watch?v=d_KZxkY_0cM", "https://www.youtube.com/watch?v=2-LAMcpzODU"],
-        ["https://www.youtube.com/watch?v=tSvkOEKT7sg", "https://www.youtube.com/watch?v=CAwf7n6Luuc", "https://www.youtube.com/watch?v=GZbfZ033f74", "https://www.youtube.com/watch?v=5YK4bgzXDp0", "https://www.youtube.com/watch?v=soxrZlIl35U", "https://www.youtube.com/watch?v=sxA__DoLsgo"],
-        ["https://www.youtube.com/watch?v=1oed-UmAxFs", "https://www.youtube.com/watch?v=2C-uNgKwPLE", "https://www.youtube.com/watch?v=1Tq3QdYUuHs", "https://www.youtube.com/watch?v=YyvSfVjQeL0", "https://www.youtube.com/watch?v=6GMKPQVERzw"]
-    ]
-}
-
-# ------ Session State Management ------
+# ------ Main Interface ------
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
 if 'user_name' not in st.session_state:
@@ -155,8 +112,12 @@ if 'user_name' not in st.session_state:
 if 'diet_plan' not in st.session_state:
     st.session_state.diet_plan = None
 
-# ------ Database Connection ------
+# Initialize database
 conn = init_db()
+
+# Backup database every day
+if datetime.now().hour == 0 and datetime.now().minute == 0:
+    backup_db()
 
 # ------ Login/Registration System ------
 if not st.session_state.logged_in:
@@ -235,64 +196,6 @@ if st.session_state.logged_in:
         st.subheader(f"{i}. {exercise}")
         st.video(video)
         
-   # ... (Previous imports and code remain the same until the Weight Tracking System section)
-
-# ------ Weight Tracking System ------
-def init_weight_tracking_db():
-    conn = sqlite3.connect('fitness_app.db')
-    c = conn.cursor()
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS weight_tracking (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT NOT NULL,
-            date TEXT NOT NULL,
-            day TEXT NOT NULL,
-            exercise TEXT NOT NULL,
-            weight REAL NOT NULL,
-            progress REAL DEFAULT 0
-        )
-    ''')
-    conn.commit()
-    return conn
-
-def save_weights_to_db(conn, username, date, day, exercises, weights):
-    c = conn.cursor()
-    for exercise, weight in zip(exercises, weights):
-        # Fetch the last weight for this exercise
-        c.execute('''
-            SELECT weight FROM weight_tracking
-            WHERE username = ? AND exercise = ?
-            ORDER BY date DESC
-            LIMIT 1
-        ''', (username, exercise))
-        last_weight = c.fetchone()
-        
-        # Calculate progress (difference between current and last weight)
-        progress = 0 if last_weight is None else weight - last_weight[0]
-        
-        # Insert the new record
-        c.execute('''
-            INSERT INTO weight_tracking (username, date, day, exercise, weight, progress)
-            VALUES (?, ?, ?, ?, ?, ?)
-        ''', (username, date, day, exercise, weight, progress))
-    conn.commit()
-
-def get_weight_history(conn, username):
-    c = conn.cursor()
-    c.execute('''
-        SELECT date, day, exercise, weight, progress FROM weight_tracking
-        WHERE username = ?
-        ORDER BY date DESC
-    ''', (username,))
-    return c.fetchall()
-
-# Initialize the weight tracking database
-weight_conn = init_weight_tracking_db()
-
-# ------ Main Interface ------
-if st.session_state.logged_in:
-    # ... (Previous sidebar and main content code remains the same)
-
     # ------ Weight Tracking System ------
     st.header("🏋️ تسجيل الأوزان")
     weights = []
@@ -302,19 +205,18 @@ if st.session_state.logged_in:
     
     if st.button("حفظ التقدم"):
         current_date = pd.Timestamp.now().strftime("%Y-%m-%d")
-        save_weights_to_db(weight_conn, st.session_state.user_name, current_date, selected_day, workout_data["التمارين"][day_index], weights)
+        save_weights_to_db(conn, st.session_state.user_name, current_date, selected_day, workout_data["التمارين"][day_index], weights)
         st.success("تم الحفظ بنجاح!")
 
     # Display Weight History
     st.header("📊 تاريخ الأوزان")
-    weight_history = get_weight_history(weight_conn, st.session_state.user_name)
+    weight_history = get_weight_history(conn, st.session_state.user_name)
     if weight_history:
         history_df = pd.DataFrame(weight_history, columns=["التاريخ", "اليوم", "التمرين", "الوزن", "التقدم"])
         st.dataframe(history_df)
     else:
         st.info("لا توجد سجلات للأوزان حتى الآن.")
 
-# ... (Rest of the code remains the same)
 else:
     st.title("اللياقة الذكية")
     st.markdown("""
@@ -325,4 +227,4 @@ else:
     - تتبع التقدم الرياضي
     - إحصائيات شخصية
     """)
-    render_lottie_animation(load_lottieurl("https://assets1.lottiefiles.com/packages/lf20_5itoumpj.json"))
+    render_lottie_animation(load_lottieurl( "https://assets9.lottiefiles.com/packages/lf20_1pxqjqps.json"))
