@@ -346,7 +346,7 @@ if st.session_state.logged_in:
 
     # ------ Main Content ------
     st.title("🔥 برنامج اللياقة المتكامل")
-    render_lottie_animation(load_lottieurl("https://lottie.host/f1da6370-e256-4391-b1c5-677c4f3fa236/XdNGPeACwk.json"))
+    render_lottie_animation(load_lottieurl("https://lottie.host/fa7dc8bc-fb01-4816-ab5c-090e03203eb1/Su4GPIiaHf.json"))
     
     selected_day = st.selectbox("اختر يوم التمرين", workout_data["اليوم"])
     day_index = workout_data["اليوم"].index(selected_day)
