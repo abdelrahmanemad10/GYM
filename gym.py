@@ -227,4 +227,4 @@ else:
     - تتبع التقدم الرياضي
     - إحصائيات شخصية
     """)
-    render_lottie_animation(load_lottieurl( "https://assets9.lottiefiles.com/packages/lf20_1pxqjqps.json"))
+    render_lottie_animation(load_lottieurl( "https://lottie.host/c8630a39-411d-452d-9464-c86ed2fe98e1/X7b1fqduB5.lottie"))
