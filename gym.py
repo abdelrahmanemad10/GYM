@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import matplotlib.pyplot as plt
 import requests
 import os
 import sqlite3
@@ -360,26 +361,39 @@ if st.session_state.logged_in:
         st.subheader(f"{i}. {exercise}")
         st.video(video)
         
-    # ------ Weight Tracking System ------
+    # ------ Workout Logging and Visualization ------
     st.header("🏋️ تسجيل الأوزان")
-    weights = []
-    for exercise in workout_data["التمارين"][day_index]:
-        weight = st.number_input(f"الوزن لـ {exercise} (كجم)", 0.0, 300.0, 0.0, key=f"weight_{exercise}")
-        weights.append(weight)
     
-    if st.button("حفظ التقدم"):
-        current_date = pd.Timestamp.now().strftime("%Y-%m-%d")
-        save_weights_to_db(conn, st.session_state.user_name, current_date, selected_day, workout_data["التمارين"][day_index], weights)
-        st.success("تم الحفظ بنجاح!")
+    # Initialize session state for tracking workouts
+    if "workouts" not in st.session_state:
+        st.session_state.workouts = []
 
-    # Display Weight History
-    st.header("📊 تاريخ الأوزان")
-    weight_history = get_weight_history(conn, st.session_state.user_name)
-    if weight_history:
-        history_df = pd.DataFrame(weight_history, columns=["التاريخ", "اليوم", "التمرين", "الوزن", "التقدم"])
-        st.dataframe(history_df)
-    else:
-        st.info("لا توجد سجلات للأوزان حتى الآن.")
+    # Workout Logging Section
+    st.header("Log Your Workout")
+    exercise = st.text_input("Exercise Name")
+    weight = st.number_input("Weight Lifted (kg)", min_value=0.0, step=0.5)
+    reps = st.number_input("Reps", min_value=1, step=1)
+    add_workout = st.button("Add Workout")
+
+    if add_workout and exercise:
+        st.session_state.workouts.append({"Exercise": exercise, "Weight": weight, "Reps": reps})
+        st.success("Workout added!")
+
+    # Display Workout History
+    if st.session_state.workouts:
+        st.header("Workout History")
+        df = pd.DataFrame(st.session_state.workouts)
+        st.dataframe(df)
+        
+        # Visualization
+        st.subheader("Progress Over Time")
+        fig, ax = plt.subplots()
+        df.groupby("Exercise")["Weight"].mean().plot(kind="bar", ax=ax)
+        st.pyplot(fig)
+
+    # Motivation & Engagement
+    st.header("Stay Motivated!")
+    st.write("Track your progress and crush your fitness goals!")
 
 else:
     st.title("اللياقة الذكية")
