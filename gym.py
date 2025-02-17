@@ -235,11 +235,11 @@ def get_weight_history(conn, username):
 
 # ------ Diet Generation Function with Gemini ------
 def generate_diet(age, weight, height, goal, preferences, budget):
-    prompt = f"""
+    prompt = f""" انت اخصائي تغذيه خبير 
     أنا أبلغ من العمر {age} عامًا، ووزني {weight} كجم، وطولي {height} سم. هدفي هو {goal}.
     تفضيلاتي الغذائية هي: {', '.join(preferences)}.
     ميزانيتي الشهرية للطعام هي: {budget} جنيه مصري.
-    الرجاء إنشاء خطة غذائية يومية مناسبة لي مع مراعاة الميزانية.
+     الرجاء إنشاء خطة غذائية يومية مناسبة لي مع مراعاة الميزانية و مراعاة اننا في مصر واجعل اجابتك باللهجه المصريه.
     """
     response = model.generate_content(prompt)
     return response.text
