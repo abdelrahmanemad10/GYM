@@ -101,7 +101,7 @@ workout_data = {
         [
             "https://www.youtube.com/watch?v=rT7DgCr-3pg",  # Bench Press
             "https://www.youtube.com/watch?v=8iPEnn-ltC8",  # Incline Dumbbell Press
-            "https://www.youtube.com/watch?v=kDqklk1ZEsI",  # Lateral Raises
+            "https://youtu.be/Bmgmw3qkFe4?si=MmTMOeDYmqsdMlaC",  # Lateral Raises
             "https://www.youtube.com/watch?v=2yjwXTZQDDI",  # Overhead Shoulder Press
             "https://www.youtube.com/watch?v=vB5OHsJ3EME"   # Triceps Rope Pushdown
         ],
@@ -124,7 +124,7 @@ workout_data = {
         # Push 2
         [
             "https://www.youtube.com/watch?v=VmB1G1K7v94",  # Flat Dumbbell Press
-            "https://www.youtube.com/watch?v=MYIz9wq0G3A",  # Incline Barbell Press
+            "https://youtu.be/tQE1f4jsJOM?si=Pz_1BSPeuMYJewnA",  # Incline Barbell Press
             "https://www.youtube.com/watch?v=F3QY5vMz_6I",  # Front Cable Raise
             "https://www.youtube.com/watch?v=3ml7BH7mNwQ",  # French Press (Triceps)
             "https://www.youtube.com/watch?v=nRiJVZDpdL0"   # Overhead Dumbbell Triceps Extension
@@ -135,7 +135,7 @@ workout_data = {
             "https://www.youtube.com/watch?v=roCP6wCXPqo",  # One-Arm Dumbbell Row
             "https://www.youtube.com/watch?v=HSoHeSjvIdY",  # Face Pulls
             "https://www.youtube.com/watch?v=kwG2ipFRgfo",  # Concentration Curl
-            "https://www.youtube.com/watch?v=8bFtlHqSeNg"   # Wrist Curl
+            "https://youtu.be/J3uyPuc9304?si=7sPx2Y6eiedSWf98"   # Wrist Curl
         ],
         # Legs 2
         [
