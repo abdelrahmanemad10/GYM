@@ -234,11 +234,12 @@ def get_weight_history(conn, username):
     return c.fetchall()
 
 # ------ Diet Generation Function with Gemini ------
-def generate_diet(age, weight, height, goal, preferences):
+def generate_diet(age, weight, height, goal, preferences, budget):
     prompt = f"""
     أنا أبلغ من العمر {age} عامًا، ووزني {weight} كجم، وطولي {height} سم. هدفي هو {goal}.
     تفضيلاتي الغذائية هي: {', '.join(preferences)}.
-    الرجاء إنشاء خطة غذائية يومية مناسبة لي.
+    ميزانيتي الشهرية للطعام هي: {budget} جنيه مصري.
+    الرجاء إنشاء خطة غذائية يومية مناسبة لي مع مراعاة الميزانية.
     """
     response = model.generate_content(prompt)
     return response.text
@@ -321,9 +322,10 @@ if st.session_state.logged_in:
             height = st.number_input("الطول (سم)", 140, 220, 170)
             goal = st.selectbox("الهدف", ["خسارة الوزن", "بناء العضلات", "الحفاظ على الوزن"])
             preferences = st.multiselect("التفضيلات", ["نباتي", "قليل السكر", "عالي البروتين", "خالي من الجلوتين"])
+            budget = st.number_input("الميزانية الشهرية للطعام (جنيه مصري)", 500, 10000, 2000)
             
             if st.button("🎯 توليد الخطة"):
-                diet = generate_diet(age, weight, height, goal, preferences)
+                diet = generate_diet(age, weight, height, goal, preferences, budget)
                 st.session_state.diet_plan = diet
                 
         if st.session_state.diet_plan:
