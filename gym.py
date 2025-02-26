@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 # ------ Configure Gemini API ------
 genai.configure(api_key="AIzaSyCtIffUrtXoRAQKRUM8dohxop3YM34dfQc")  # Replace with your Gemini API key
-model = genai.GenerativeModel('gemini-pro')
+model = genai.GenerativeModel('gemini-1.5-flash')
 
 # ------ Lottie Animation Functions ------
 def load_lottieurl(url: str):
